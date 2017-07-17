@@ -1,7 +1,8 @@
 
-/*
+/* skip_lwt.c
+ *
  * skip over socket processing :
- * 
+ *
  * Routing table implementation of the skip based on Linux light
  * weight tunneling infrastrcture.
  *
@@ -18,6 +19,7 @@
 #include <net/ip_fib.h>
 #include <net/ip6_fib.h>
 
+#include "skip.h"
 #include "skip_lwt.h"
 
 #ifdef pr_fmt
