@@ -146,7 +146,7 @@ static int skip_build_state(struct net_device * dev, struct nlattr *nla,
 	if (tb[SKIP_ATTR_INBOUND] && nla_get_u8(tb[SKIP_ATTR_INBOUND]))
 		slwt->inbound = true;
 	if (tb[SKIP_ATTR_OUTBOUND] && nla_get_u8(tb[SKIP_ATTR_OUTBOUND]))
-		slwt->inbound = true;
+		slwt->outbound = true;
 
 	/* setup v4/v6 mapping configurations */
 	if (tb[SKIP_ATTR_MAP_V4V6] && tb[SKIP_ATTR_MAP_PREFIX] &&

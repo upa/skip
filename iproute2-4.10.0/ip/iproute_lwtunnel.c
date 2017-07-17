@@ -245,16 +245,10 @@ static void print_encap_skip(FILE *fp, struct rtattr *encap)
 	
 	/* inbound/outbound */
 	if (tb[SKIP_ATTR_INBOUND] && rta_getattr_u8(tb[SKIP_ATTR_INBOUND]))
-		strcpy(buf, "permit");
-	else
-		strcpy(buf, "deny");
-	fprintf(fp, "inbound %s ", buf);
+		fprintf(fp, "inbound ");
 
 	if (tb[SKIP_ATTR_OUTBOUND] && rta_getattr_u8(tb[SKIP_ATTR_OUTBOUND]))
-		strcpy(buf, "permit");
-	else
-		strcpy(buf, "deny");
-	fprintf(fp, "outbound %s ", buf);
+		fprintf(fp, "outbound ");
 
 	/* v4v6 mapping */
 	if (tb[SKIP_ATTR_MAP_V4V6] && rta_getattr_u8(tb[SKIP_ATTR_MAP_V4V6])) {
@@ -627,27 +621,11 @@ static int parse_encap_skip(struct rtattr *rta, size_t len,
 
 		} else if (strcmp(*argv, "inbound") == 0) {
 
-			NEXT_ARG();
-			if (strcmp(*argv, "permit") == 0)
-				rta_addattr8(rta, len, SKIP_ATTR_INBOUND, 1);
-			else if (strcmp(*argv, "deny") == 0)
-				rta_addattr8(rta, len, SKIP_ATTR_INBOUND, 0);
-			else {
-				invarg("invalid inbound (permit or deny)\n",
-					*argv);
-			}
+			rta_addattr8(rta, len, SKIP_ATTR_INBOUND, 1);
 	
 		} else if (strcmp(*argv, "outbound") == 0) {
 
-			NEXT_ARG();
-			if (strcmp(*argv, "permit") == 0)
-				rta_addattr8(rta, len, SKIP_ATTR_OUTBOUND, 1);
-			else if (strcmp(*argv, "deny") == 0)
-				rta_addattr8(rta, len, SKIP_ATTR_OUTBOUND, 0);
-			else {
-				invarg("invalid outbound (permit or deny)\n",
-					*argv);
-			}
+			rta_addattr8(rta, len, SKIP_ATTR_OUTBOUND, 1);
 
 		} else if (strcmp(*argv, "map") == 0) {
 

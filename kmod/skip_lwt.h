@@ -1,4 +1,4 @@
-/* skip_wlt.h - SKIP interface */
+/* skip_lwt.h - SKIP interface */
 
 #ifndef _SKIP_LWT_H
 #define _SKIP_LWT_H
