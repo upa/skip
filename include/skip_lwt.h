@@ -1,7 +1,13 @@
 /* skip_wlt.h - SKIP interface */
 
-#ifndef _SKIP_LWT_H
-#define _SKIP_LWT_H
+#ifndef _SKIP_LWT_H_
+#define _SKIP_LWT_H_
+
+
+
+/* XXX: overwrite ILA encap type by skip
+ * because lwtunnel_encap_types is defined as enum... */
+#define LWTUNNEL_ENCAP_SKIP     LWTUNNEL_ENCAP_ILA
 
 enum {
 	SKIP_ATTR_UNSPEC,

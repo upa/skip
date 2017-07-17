@@ -1,7 +1,7 @@
 /* skip_lwt.h - SKIP interface */
 
-#ifndef _SKIP_LWT_H
-#define _SKIP_LWT_H
+#ifndef _SKIP_LWT_H_
+#define _SKIP_LWT_H_
 
 enum {
 	SKIP_ATTR_UNSPEC,

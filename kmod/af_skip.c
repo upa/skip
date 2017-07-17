@@ -3,9 +3,9 @@
  *
  * skip over socket processing
  *
- * Address family implementation of skip based on thin socket
- * connecting a socket opened at (container) netns and a socket opened
- * at host network stack (default netns).
+ * Address family implementation of the skip based on a thin socket
+ * layer connecting a socket opened at a (container) netns and a
+ * socket opened at the host network stack (default netns).
  */
 
 #include <linux/module.h>
@@ -14,16 +14,13 @@
 #include <net/sock.h>
 
 #include "skip.h"
-
+#include <skip_af.h>
 
 #ifdef pr_fmt
 #undef pr_fmt
 #endif
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
-/* override AF_IPX (maybe) they are never used */
-#define AF_SKIP	AF_IPX	
-#define PF_SKIP	AF_SKIP
 
 
 struct skip_sock {
@@ -99,12 +96,10 @@ static int skip_connect(struct socket *sock, struct sockaddr *vaddr,
 
 static int skip_socketpair(struct socket *sock1, struct socket *sock2)
 {
-	struct socket *hsock = skip_hsock(skip_sk(sock1->sk));
-
 	/* XXX: ??? */
 
+	struct socket *hsock = skip_hsock(skip_sk(sock1->sk));
 	return hsock->ops->socketpair(hsock, sock2);
-	
 }
 
 static int skip_accept(struct socket *sock, struct socket *newsocket,
@@ -117,8 +112,10 @@ static int skip_accept(struct socket *sock, struct socket *newsocket,
 static int skip_getname(struct socket *sock, struct sockaddr *addr,
 			int *sockaddr_len, int peer)
 {
-	struct socket *vsock = skip_vsock(skip_sk(sock->sk));	
-	return vsock->ops->getname(vsock, addr, sockaddr_len, peer);
+	/* XXX: getname should be executed on vsock? */
+
+	struct socket *hsock = skip_hsock(skip_sk(sock->sk));	
+	return hsock->ops->getname(hsock, addr, sockaddr_len, peer);
 }
 
 static unsigned int skip_poll(struct file *file, struct socket *sock,
@@ -132,32 +129,18 @@ static unsigned int skip_poll(struct file *file, struct socket *sock,
 static int skip_ioctl(struct socket *sock, unsigned int cmd,
 		      unsigned long arg)
 {
-	int ret;
+	/* XXX: ioctl should be executed on both h/vsock? */
+
 	struct socket *hsock = skip_hsock(skip_sk(sock->sk));
-	struct socket *vsock = skip_vsock(skip_sk(sock->sk));
-
-	ret = hsock->ops->ioctl(hsock, cmd, arg);
-	if (ret) {
-		pr_err("%s: faield for host socket\n",  __func__);
-		return ret;
-	}
-
-	return vsock->ops->ioctl(vsock, cmd, arg);
+	return hsock->ops->ioctl(hsock, cmd, arg);
 }
 
 static int skip_listen(struct socket *sock, int len)
 {
-	int ret;
+	/* XXX: ioctl should be executed on both h/vsock? */
+
 	struct socket *hsock = skip_hsock(skip_sk(sock->sk));
-	struct socket *vsock = skip_vsock(skip_sk(sock->sk));
-
-	ret = hsock->ops->listen(hsock, len);
-	if (ret) {
-		pr_err("%s: faield for host socket\n",  __func__);
-		return ret;
-	}
-
-	return vsock->ops->listen(vsock, len);
+	return hsock->ops->listen(hsock, len);
 }
 
 
@@ -177,17 +160,10 @@ static int skip_setsockopt(struct socket *sock, int level,
 			   int optname, char __user *optval,
 			   unsigned int optlen)
 {
-	int ret;
+	/* XXX: setsockopt should be executed on both h/vsock? */
+
 	struct socket *hsock = skip_hsock(skip_sk(sock->sk));
-	struct socket *vsock = skip_vsock(skip_sk(sock->sk));
-
-	ret = hsock->ops->setsockopt(hsock, level, optname, optval, optlen);
-	if (ret) {
-		pr_err("%s: faield for host socket\n", __func__);
-		return ret;
-	}
-
-	return vsock->ops->setsockopt(vsock, level, optname, optval, optlen);
+	return hsock->ops->setsockopt(hsock, level, optname, optval, optlen);
 }
 
 static int skip_getsockopt(struct socket *sock, int level,
@@ -232,18 +208,10 @@ static ssize_t skip_splice_read(struct socket *sock, loff_t *ppos,
 
 static int skip_set_peek_off(struct sock *sk, int val)
 {
-	int ret;
+	/* XXX: set_peek_off should be executed on both h/vsock? */
+
 	struct socket *hsock = skip_hsock(skip_sk(sk));
-	struct socket *vsock = skip_vsock(skip_sk(sk));
-
-	ret = hsock->ops->set_peek_off(hsock->sk, val);
-	if (ret) {
-		pr_err("%s: failed for host socket\n", __func__);
-		return ret;
-	}
-
-	ret = vsock->ops->set_peek_off(vsock->sk, val);
-	return ret;
+	return hsock->ops->set_peek_off(hsock->sk, val);
 }
 
 static const struct proto_ops skip_proto_ops = {
@@ -278,6 +246,7 @@ static struct proto skip_proto = {
 static int skip_create(struct net *net, struct socket *sock,
 		       int protocol, int kern)
 {
+	int ret;
 	struct sock *sk;
 	struct skip_sock *ssk;
 
@@ -298,6 +267,15 @@ static int skip_create(struct net *net, struct socket *sock,
 	 * created when any one of bind(), connect(), sendto/msg() are
 	 * called.
 	 */
+	ret = __sock_create(get_net(&init_net),
+			    AF_INET, sk->sk_type, sk->sk_protocol,
+			    &ssk->hsock, kern);
+	if (ret < 0) {
+		pr_err("%s: failed to create a socket on default netns\n",
+		       __func__);
+		sk_free(sk);
+		return ret;
+	}
 
 	return 0;
 }

@@ -14,13 +14,12 @@
 #include <linux/socket.h>
 #include <linux/types.h>
 #include <net/ip.h>
-#include <uapi/linux/lwtunnel.h>
 #include <net/lwtunnel.h>
 #include <net/ip_fib.h>
 #include <net/ip6_fib.h>
 
 #include "skip.h"
-#include "skip_lwt.h"
+#include <skip_lwt.h>
 
 #ifdef pr_fmt
 #undef pr_fmt
