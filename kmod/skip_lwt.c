@@ -27,10 +27,6 @@
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
 
-/* XXX: overwrite ILA encap type by skip
- * because lwtunnel_encap_types is defined as enum... */
-#define LWTUNNEL_ENCAP_SKIP	LWTUNNEL_ENCAP_ILA
-
 
 /* skip lwtunnel state structure */
 struct skip_lwt {
