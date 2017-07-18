@@ -4,7 +4,7 @@
 #include <sys/socket.h>
 #include <sys/types.h>
 
-#include <skip_af.h>
+#include <af_skip.h>
 
 
 static int (*original_socket)(int domain, int type, int protocol);

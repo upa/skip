@@ -12,9 +12,10 @@
 #include <linux/kernel.h>
 #include <linux/socket.h>
 #include <net/sock.h>
+#include <af_skip.h>
 
 #include "skip.h"
-#include <skip_af.h>
+
 
 #ifdef pr_fmt
 #undef pr_fmt

@@ -5,8 +5,6 @@ VERBOSE = 0
 obj-m := skip.o
 skip-objs := skip_main.o skip_lwt.o af_skip.o
 
-inc = -I$(shell pwd | xargs dirname)/include/
-
 ccflags-y := -I$(src)/../include/
 
 all:
