@@ -589,6 +589,14 @@ static int parse_encap_bpf(struct rtattr *rta, size_t len, int *argcp,
 	return 0;
 }
 
+static void lwt_skip_usage(void)
+{
+	fprintf(stderr,
+		"Usage: ip route ... encap skip [ host ADDRESS ] "
+		"[ inbound ] [ outbound ] [ map V4V6MAP_6PREFIX ]\n");
+		exit(-1);
+}
+
 static int parse_encap_skip(struct rtattr *rta, size_t len,
 			    int *argcp, char ***argvp)
 {
@@ -638,6 +646,8 @@ static int parse_encap_skip(struct rtattr *rta, size_t len,
 				invarg("invalid prefix for v4v6 mapping\n",
 					*argv);
 			}
+		} else if (strcmp(*argv, "help") == 0) {
+			lwt_skip_usage();
 		}
 
 		argc--;
