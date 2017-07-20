@@ -18,8 +18,10 @@
 #include <net/ip_fib.h>
 #include <net/ip6_fib.h>
 
-#include "skip.h"
 #include <skip_lwt.h>
+
+#include "skip.h"
+
 
 #ifdef pr_fmt
 #undef pr_fmt
@@ -27,28 +29,6 @@
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
 
-
-/* skip lwtunnel state structure */
-struct skip_lwt {
-	int		dst_family;
-	__be32		dst_addr4;
-	struct in6_addr	dst_addr6;
-
-	int 		host_family;
-	__be32		host_addr4;
-	struct in6_addr	host_addr6;
-	
-	bool inbound;
-	bool outbound;
-	
-	bool v4v6map;
-	struct in6_addr map_prefix;
-};
-
-static inline struct skip_lwt *skip_lwt_tunnel(struct lwtunnel_state *lwt)
-{
-	return (struct skip_lwt *)lwt->data;
-}
 
 
 static int skip_input(struct sk_buff *skb)
@@ -108,7 +88,7 @@ static int skip_build_state(struct net_device * dev, struct nlattr *nla,
 
 	ret = -EINVAL;
 
-	slwt = skip_lwt_tunnel(newts);
+	slwt = skip_lwt_lwtunnel(newts);
 	memset(slwt, 0, sizeof(*slwt));
 
 	slwt->dst_family = family;
@@ -186,7 +166,7 @@ static void skip_destroy_state(struct lwtunnel_state *lwt)
 static int skip_fill_encap_info(struct sk_buff *skb,
 				struct lwtunnel_state *lwtstate)
 {
-	struct skip_lwt *slwt = skip_lwt_tunnel(lwtstate);
+	struct skip_lwt *slwt = skip_lwt_lwtunnel(lwtstate);
 
 	if (nla_put_u32(skb, SKIP_ATTR_HOST_ADDR_FAMILY, slwt->host_family))
 		goto nla_put_failure;

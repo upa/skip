@@ -4,6 +4,35 @@
 #define _SKIP_LWT_H_
 
 
+#ifdef __KERNEL__
+
+#include <net/lwtunnel.h>
+
+/* skip lwtunnel state structure */
+struct skip_lwt {
+	int		dst_family;
+	__be32		dst_addr4;
+	struct in6_addr dst_addr6;
+
+	int		host_family;
+	__be32		host_addr4;
+	struct in6_addr	host_addr6;
+
+	bool inbound;
+	bool outbound;
+
+	bool v4v6map;
+	struct in6_addr map_prefix;
+};
+
+static inline struct skip_lwt *skip_lwt_lwtunnel(struct lwtunnel_state *lwt)
+{
+        return (struct skip_lwt *)lwt->data;
+}
+
+#endif	/* __KERNEL__ */
+
+
 
 /* XXX: overwrite ILA encap type by skip
  * because lwtunnel_encap_types is defined as enum... */
