@@ -8,7 +8,7 @@ LDL_CFLAGS := -fPIC -shared -ldl
 PROGNAME = libskip.so
 
 
-LIBSKIP_VERBOSE ?= no
+LIBSKIP_VERBOSE ?= yes
 flag_verbose_yes = -DVERBOSE
 flag_verbose_no = 
 
