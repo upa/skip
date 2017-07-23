@@ -16,15 +16,21 @@
 
 #ifdef VERBOSE
 #define pr_v(fmt, ...) fprintf(stderr,					\
-			       "\x1b[1m\x1b[33m" PROGNAME ": %s: " fmt	\
+			       "\x1b[1m\x1b[32m" PROGNAME ": %s: " fmt	\
 			       "\x1b[0m",				\
 			       __func__, ##__VA_ARGS__)
+
+#define pr_vs(fmt, ...) fprintf(stderr,					\
+				"\x1b[1m\x1b[34m" PROGNAME ": %s: " fmt	\
+				"\x1b[0m",				\
+				__func__, ##__VA_ARGS__)
 #else
 #define pr_v(fmt, ...)
+#define pr_vs(fmt, ...)
 #endif
 
 #define pr_e(fmt, ...) fprintf(stderr,					\
-			       "\x1b[1m\x1b[33m" PROGNAME ": %s: " fmt	\
+			       "\x1b[1m\x1b[31m" PROGNAME ": %s: " fmt	\
 			       "\x1b[0m",				\
 			       __func__, ##__VA_ARGS__)
 
@@ -40,9 +46,12 @@ int socket(int domain, int type, int protocol)
 	original_socket = dlsym(RTLD_NEXT, "socket");
 
 	if (domain == AF_INET || domain == AF_INET6) {
-		pr_v("overwrite family %d with AF_SKIP(%d)\n",
-		       domain, AF_SKIP);
+		pr_vs("overwrite family %d with AF_SKIP(%d)\n",
+		      domain, AF_SKIP);
 		new_domain = AF_SKIP;
+	} else {
+		pr_v("not AF_INET/6 family '%d'. call original socket()\n",
+		     domain);
 	}
 
 	return original_socket(new_domain, type, protocol);
@@ -63,12 +72,7 @@ int bind(int sockfd, const struct sockaddr *addr, socklen_t addrlen)
 	struct sockaddr_in *sa4 = (struct sockaddr_in*)&saddr_s;
 	struct sockaddr_in6 *sa6 = (struct sockaddr_in6 *)&saddr_s;
 
-	str_bind_addr = getenv("AF_SKIP_BIND_ADDRESS");
-
-	if (!str_bind_addr) {
-		pr_v("AF_SKIP_BIND_ADDRESS is not defined as env vars\n");
-		return original_bind(sockfd, addr, addrlen);
-	}
+	original_bind = dlsym(RTLD_NEXT, "bind");
 
 	switch (addr->sa_family) {
 	case AF_INET:
@@ -84,19 +88,27 @@ int bind(int sockfd, const struct sockaddr *addr, socklen_t addrlen)
 	}
 
 
+	str_bind_addr = getenv("AF_SKIP_BIND_ADDRESS");
+
+	if (!str_bind_addr) {
+		pr_v("AF_SKIP_BIND_ADDRESS is not defined. "
+		     "call original bind()\n");
+		return original_bind(sockfd, addr, addrlen);
+	}
+
 	if (inet_pton(AF_INET, str_bind_addr, &sa4->sin_addr) == 1)  {
 
 		sa4->sin_family = AF_INET;
 		sa4->sin_port = port;
 		new_addrlen = sizeof(struct sockaddr_in);
-		pr_v("bind() address is changed to %s\n", str_bind_addr);
+		pr_vs("bind() address is changed to %s\n", str_bind_addr);
 
 	} else if (inet_pton(AF_INET6, str_bind_addr, &sa6->sin6_addr) == 1)  {
 
 		sa6->sin6_family = AF_INET6;
 		sa6->sin6_port = port;
 		new_addrlen = sizeof(struct sockaddr_in6);
-		pr_v("bind() address is changed to %s\n", str_bind_addr);
+		pr_vs("bind() address is changed to %s\n", str_bind_addr);
 
 	} else {
 		pr_e("invalid bind address '%s'\n", str_bind_addr);
@@ -105,3 +117,4 @@ int bind(int sockfd, const struct sockaddr *addr, socklen_t addrlen)
 
 	return original_bind(sockfd, (struct sockaddr *)&saddr_s, new_addrlen);
 }
+

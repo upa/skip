@@ -164,15 +164,17 @@ static int skip_bind(struct socket *sock, struct sockaddr *uaddr, int addr_len)
 		return -EINVAL;
 
 	ret = skip_find_lwtstate(sock, uaddr, &slwt);
-	if (ret)
+	if (ret) {
+		pr_debug("%s: no skip route found\n", __func__);
 		return ret;
+	}
 
 	memset(&saddr_s, 0, sizeof(saddr_s));
 	switch (slwt->host_family) {
 	case AF_INET:
 		sa4 = (struct sockaddr_in *)&saddr_s;
 		sa4->sin_family = AF_INET;
-		sa4->sin_addr =	((struct sockaddr_in *)uaddr)->sin_addr;
+		sa4->sin_addr.s_addr = slwt->host_addr4;
 		sa4->sin_port = ((struct sockaddr_in *)uaddr)->sin_port;
 		h_addrlen = sizeof(struct sockaddr_in);
 		break;
@@ -180,7 +182,7 @@ static int skip_bind(struct socket *sock, struct sockaddr *uaddr, int addr_len)
 	case AF_INET6:
 		sa6 = (struct sockaddr_in6 *)&saddr_s;
 		sa6->sin6_family = AF_INET6;
-		sa6->sin6_addr = ((struct sockaddr_in6 *)uaddr)->sin6_addr;
+		sa6->sin6_addr = slwt->host_addr6;
 		sa6->sin6_port = ((struct sockaddr_in6 *)uaddr)->sin6_port;
 		h_addrlen = sizeof(struct sockaddr_in6);
 		break;
@@ -192,12 +194,16 @@ static int skip_bind(struct socket *sock, struct sockaddr *uaddr, int addr_len)
 
 
 	ret = hsock->ops->bind(hsock, (struct sockaddr *)&saddr_s, h_addrlen);
-	if (ret)
+	if (ret) {
+		pr_debug("%s: hsock->ops->bind() failed, ret=%d\n",
+			 __func__, ret);
 		return ret;
+	}
 
+	pr_debug("%s: bind success\n", __func__);
 	ssk->bound = true;	/* this socket is already bind()ed */
 
-	return ret;
+	return 0;
 }
 
 static int skip_connect(struct socket *sock, struct sockaddr *vaddr,
