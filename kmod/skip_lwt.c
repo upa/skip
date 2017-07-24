@@ -57,13 +57,31 @@ static const struct nla_policy skip_nl_policy[SKIP_ATTR_MAX + 1] = {
 
 static void skip_pr_state(struct skip_lwt *slwt)
 {
-	pr_info("lwt: dst: family %d, addr4 %pI4, addr6 %pI6\n",
-		slwt->dst_family, &slwt->dst_addr4, &slwt->dst_addr6);
-	pr_info("lwt: host: family %d, addr4 %pI4, addr6 %pI6\n",
-		slwt->host_family, &slwt->host_addr4, &slwt->host_addr6);
-	pr_info("lwt: inoubnd %d, outbound %d\n",
+	switch(slwt->dst_family){
+	case AF_INET:
+		pr_debug("lwt: dst: family AF_INET, %pI4\n",
+			 &slwt->dst_addr4);
+		break;
+	case AF_INET6:
+		pr_debug("lwt: dst: family AF_INET6, %pI6\n",
+			 &slwt->dst_addr6);
+		break;
+	}
+
+	switch(slwt->host_family){
+	case AF_INET:
+		pr_debug("lwt: host: family AF_INET, %pI4\n",
+			&slwt->host_addr4);
+		break;
+	case AF_INET6:
+		pr_debug("lwt: host: family AF_INET6, %pI6\n",
+			&slwt->host_addr6);
+		break;
+	}
+
+	pr_debug("lwt: inoubnd %d, outbound %d\n",
 		slwt->inbound, slwt->outbound);
-	pr_info("lwt: v4v6map %d, map_prefix %pI6\n",
+	pr_debug("lwt: v4v6map %d, map_prefix %pI6\n",
 		slwt->v4v6map, &slwt->map_prefix);
 }
 
@@ -77,6 +95,8 @@ static int skip_build_state(struct net_device * dev, struct nlattr *nla,
 	struct lwtunnel_state *newts;
 	const struct fib_config *cfg4 = cfg;
 	const struct fib6_config *cfg6 = cfg;
+
+	pr_debug("%s\n", __func__);
 
 	ret = nla_parse_nested(tb, SKIP_ATTR_MAX, nla, skip_nl_policy);
 	if (ret < 0)
@@ -137,7 +157,6 @@ static int skip_build_state(struct net_device * dev, struct nlattr *nla,
 	newts->type = LWTUNNEL_ENCAP_SKIP;
         newts->flags |= LWTUNNEL_STATE_OUTPUT_REDIRECT |
                         LWTUNNEL_STATE_INPUT_REDIRECT;
-	pr_info("%s: dev %p\n", __func__, dev);
 
 	/* XXX:
 	 * current skip does not have any functionalities for actual
@@ -160,7 +179,7 @@ err_out:
 
 static void skip_destroy_state(struct lwtunnel_state *lwt)
 {
-	
+	pr_debug("%s\n", __func__);
 }
 
 static int skip_fill_encap_info(struct sk_buff *skb,

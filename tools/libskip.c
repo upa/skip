@@ -1,6 +1,7 @@
 #define _GNU_SOURCE
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include <unistd.h>
 #include <errno.h>
 #include <dlfcn.h>
@@ -41,6 +42,7 @@ static int (*original_socket)(int domain, int type, int protocol);
 
 int socket(int domain, int type, int protocol)
 {
+	int ret;
 	int new_domain = domain;
 	
 	original_socket = dlsym(RTLD_NEXT, "socket");
@@ -54,7 +56,11 @@ int socket(int domain, int type, int protocol)
 		     domain);
 	}
 
-	return original_socket(new_domain, type, protocol);
+	ret = original_socket(new_domain, type, protocol);
+	if (ret < 0)
+		pr_e("failed '%d': %s\n", ret, strerror(errno));
+
+	return ret;
 }
 
 
@@ -65,8 +71,9 @@ static int (*original_bind)(int sockfd, const struct sockaddr *addr,
 
 int bind(int sockfd, const struct sockaddr *addr, socklen_t addrlen)
 {
-	unsigned short  port;
+	int ret;
 	int new_addrlen;
+	unsigned short  port;
 	char *str_bind_addr;
 	struct sockaddr_storage saddr_s;
 	struct sockaddr_in *sa4 = (struct sockaddr_in*)&saddr_s;
@@ -115,6 +122,11 @@ int bind(int sockfd, const struct sockaddr *addr, socklen_t addrlen)
 		return -EINVAL;
 	}
 
-	return original_bind(sockfd, (struct sockaddr *)&saddr_s, new_addrlen);
+	ret = original_bind(sockfd, (struct sockaddr *)&saddr_s, new_addrlen);
+	if (ret)
+		pr_e("failed '%d': %s\n", ret, strerror(errno));
+
+	return ret;
+
 }
 

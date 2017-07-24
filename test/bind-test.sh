@@ -1,13 +1,5 @@
 
 
-# enable pr_debug()
-af_skip=`cd ../kmod && pwd`/af_skip.c
-skip_lwt=`cd ../kmod && pwd`/skip_lwt.c
-debugctl="/sys/kernel/debug/dynamic_debug/control"
-echo -n "file $af_skip  +p"  > $debugctl
-echo -n "file $skip_lwt  +p" > $debugctl
-
-
 ip=../iproute2-4.10.0/ip/ip
 libskip=`cd ../tools && pwd`/libskip.so
 nsname=skip-test
@@ -25,7 +17,6 @@ $ip netns exec $nsname \
 echo Executing nc port 10000 with AF_SKIP from netns $nsname
 LD_PRELOAD=$libskip \
 	AF_SKIP_BIND_ADDRESS=10.0.0.1 \
-	ip netns exec $nsname \
 	nc -l 10000 &
 nc_pid=$!
 sleep 1

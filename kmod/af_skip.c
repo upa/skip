@@ -62,14 +62,21 @@ static int skip_release(struct socket *sock)
 	struct sock *sk = sock->sk;
 	struct skip_sock *ssk;
 
-	if (!sk)
+	if (!sk) {
+		pr_debug("%s, NULL sk\n", __func__);
 		return 0;
+	}
+	pr_debug("%s\n", __func__);
 
 	ssk = skip_sk(sk);
 	if (ssk->hsock)
-		ssk->hsock->ops->release(ssk->hsock);
+		sock_release(ssk->hsock);
 	if (ssk->vsock)
-		ssk->vsock->ops->release(ssk->vsock);
+		sock_release(ssk->vsock);
+
+	sock_orphan(sk);
+	sk_refcnt_debug_release(sk);
+	sock_put(sk);
 
 	sock->sk = NULL;
 
@@ -77,14 +84,15 @@ static int skip_release(struct socket *sock)
 }
 
 static int skip_find_lwtstate(struct socket *sock, struct sockaddr *daddr,
-			      struct skip_lwt **slwtp)
+			      struct skip_lwt *slwtp)
 {
 	/* find skip lwtunnel state */
 
+	int ret = 0;
 	struct flowi4 fl4;
 	struct flowi6 fl6;
 	struct rtable *rt;
-	struct dst_entry *dst;
+	struct dst_entry *dst = NULL;
 	struct skip_lwt *slwt;
 
 	switch (daddr->sa_family) {
@@ -96,16 +104,18 @@ static int skip_find_lwtstate(struct socket *sock, struct sockaddr *daddr,
 		if (IS_ERR(rt)) {
 			pr_debug("%s: no route found for %pI4\n",
 				 __func__, &fl4.daddr);
-			return -ENOENT;
+			ret = -ENOENT;
+			goto out;
 		}
 		if (rt->dst.lwtstate == NULL ||
 		    rt->dst.lwtstate->type != LWTUNNEL_ENCAP_SKIP) {
 			pr_debug("%s: route to %pI4 is not skip encap type\n",
 				 __func__, &fl4.daddr);
-			return -ENONET;
+			ret = -ENONET;
+			goto dst_release_out;
 		}
 
-		slwt = skip_lwt_lwtunnel(rt->dst.lwtstate);
+		dst = &rt->dst;
 		break;
 
 	case AF_INET6:
@@ -115,16 +125,17 @@ static int skip_find_lwtstate(struct socket *sock, struct sockaddr *daddr,
 		if (dst->error) {
 			pr_debug("%s: no route found for %pI6\n",
 				 __func__, &fl6.daddr);
-			return -ENOENT;
+			ret = -ENOENT;
+			goto out;
 		}
 		if (dst->lwtstate == NULL ||
 		    dst->lwtstate->type != LWTUNNEL_ENCAP_SKIP) {
 			pr_debug("%s: route to %pI6 is not skip encap type\n",
 				 __func__, &fl6.daddr);
-			return -ENONET;
+			ret = -ENONET;
+			goto dst_release_out;
 		}
 
-		slwt = skip_lwt_lwtunnel(dst->lwtstate);
 		break;
 
 	default :
@@ -133,15 +144,19 @@ static int skip_find_lwtstate(struct socket *sock, struct sockaddr *daddr,
 		return -EAFNOSUPPORT;
 	}
 
-	*slwtp = slwt;
+	slwt = skip_lwt_lwtunnel(dst->lwtstate);
+	*slwtp = *slwt;
 
-	return 0;
+dst_release_out:
+	dst_release(dst);
+out:
+	return ret;
 }
 
 static int skip_bind(struct socket *sock, struct sockaddr *uaddr, int addr_len)
 {
 	int ret, h_addrlen;
-	struct skip_lwt *slwt = NULL;
+	struct skip_lwt slwt;
 	struct skip_sock *ssk = skip_sk(sock->sk);
 	struct socket *hsock = skip_hsock(skip_sk(sock->sk));
 	struct sockaddr_storage saddr_s;
@@ -170,11 +185,11 @@ static int skip_bind(struct socket *sock, struct sockaddr *uaddr, int addr_len)
 	}
 
 	memset(&saddr_s, 0, sizeof(saddr_s));
-	switch (slwt->host_family) {
+	switch (slwt.host_family) {
 	case AF_INET:
 		sa4 = (struct sockaddr_in *)&saddr_s;
 		sa4->sin_family = AF_INET;
-		sa4->sin_addr.s_addr = slwt->host_addr4;
+		sa4->sin_addr.s_addr = slwt.host_addr4;
 		sa4->sin_port = ((struct sockaddr_in *)uaddr)->sin_port;
 		h_addrlen = sizeof(struct sockaddr_in);
 		break;
@@ -182,13 +197,13 @@ static int skip_bind(struct socket *sock, struct sockaddr *uaddr, int addr_len)
 	case AF_INET6:
 		sa6 = (struct sockaddr_in6 *)&saddr_s;
 		sa6->sin6_family = AF_INET6;
-		sa6->sin6_addr = slwt->host_addr6;
+		sa6->sin6_addr = slwt.host_addr6;
 		sa6->sin6_port = ((struct sockaddr_in6 *)uaddr)->sin6_port;
 		h_addrlen = sizeof(struct sockaddr_in6);
 		break;
 	default :
 		pr_debug("%s: invalid family '%u' of skip route\n",
-			 __func__, slwt->host_family);
+			 __func__, slwt.host_family);
 		return -EAFNOSUPPORT;
 	}
 
@@ -217,9 +232,10 @@ static int skip_connect(struct socket *sock, struct sockaddr *vaddr,
 
 	/* XXX: bind() should be called for vsock? */
 
-	if (!ssk->bound) {
-		/* bind(port 0) before connect()! to prevent container from
-		 * using addresses not assinged to this container */
+	if (sock->sk->sk_protocol == IPPROTO_UDP && !ssk->bound) {
+		/* bind(port 0) before connect() for SOCK_DRGAM
+		 * sockets to prevent container from using addresses
+		 * not assinged to this container */
 		memcpy(&saddr_s, vaddr, sockaddr_len);
 		switch (saddr_s.ss_family){
 		case AF_INET:
@@ -237,8 +253,11 @@ static int skip_connect(struct socket *sock, struct sockaddr *vaddr,
 		}
 		ret = hsock->ops->bind(hsock, (struct sockaddr *)&saddr_s,
 				       h_addrlen);
-		if (ret)
+		if (ret) {
+			pr_debug("%s: bind() before connect failed '%d'\n",
+				 __func__, ret);
 			return ret;
+		}
 	}
 
 	return hsock->ops->connect(hsock, vaddr, sockaddr_len, flags);
@@ -399,6 +418,8 @@ static int skip_create(struct net *net, struct socket *sock,
 	int ret;
 	struct sock *sk;
 	struct skip_sock *ssk;
+
+	pr_debug("%s\n", __func__);
 
 	sock->ops = &skip_proto_ops;
 
