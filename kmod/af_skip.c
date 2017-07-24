@@ -109,7 +109,7 @@ static int skip_find_lwtstate(struct socket *sock, struct sockaddr *daddr,
 		}
 		if (rt->dst.lwtstate == NULL ||
 		    rt->dst.lwtstate->type != LWTUNNEL_ENCAP_SKIP) {
-			pr_debug("%s: route to %pI4 is not skip encap type\n",
+			pr_debug("%s: route to %pI4 is not skip\n",
 				 __func__, &fl4.daddr);
 			ret = -ENONET;
 			goto dst_release_out;
@@ -130,7 +130,7 @@ static int skip_find_lwtstate(struct socket *sock, struct sockaddr *daddr,
 		}
 		if (dst->lwtstate == NULL ||
 		    dst->lwtstate->type != LWTUNNEL_ENCAP_SKIP) {
-			pr_debug("%s: route to %pI6 is not skip encap type\n",
+			pr_debug("%s: route to %pI6 is not skip\n",
 				 __func__, &fl6.daddr);
 			ret = -ENONET;
 			goto dst_release_out;
@@ -201,6 +201,7 @@ static int skip_bind(struct socket *sock, struct sockaddr *uaddr, int addr_len)
 		sa6->sin6_port = ((struct sockaddr_in6 *)uaddr)->sin6_port;
 		h_addrlen = sizeof(struct sockaddr_in6);
 		break;
+
 	default :
 		pr_debug("%s: invalid family '%u' of skip route\n",
 			 __func__, slwt.host_family);

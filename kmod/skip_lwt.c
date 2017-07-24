@@ -190,10 +190,10 @@ static int skip_fill_encap_info(struct sk_buff *skb,
 	if (nla_put_u32(skb, SKIP_ATTR_HOST_ADDR_FAMILY, slwt->host_family))
 		goto nla_put_failure;
 
-	if (slwt->dst_family == AF_INET) {
+	if (slwt->host_family == AF_INET) {
 		if (nla_put_be32(skb, SKIP_ATTR_HOST_ADDR4, slwt->host_addr4))
 			goto nla_put_failure;
-	} else if (slwt->dst_family == AF_INET6) {
+	} else if (slwt->host_family == AF_INET6) {
 		if (nla_put(skb, SKIP_ATTR_HOST_ADDR6, sizeof(struct in6_addr),
 			    &slwt->host_addr6))
 			goto nla_put_failure;
@@ -222,14 +222,41 @@ nla_put_failure:
 
 static int skip_encap_nlsize(struct lwtunnel_state *lwtstate)
 {
-	/* XXX: skip (currently) never enacp any packets */
-	return 0;
+	int nlsize = 0;
+	struct skip_lwt *slwt = skip_lwt_lwtunnel(lwtstate);
+
+	nlsize += nla_total_size(sizeof(u32)) +	/* HOST_ADDR_FAMILY */
+		nla_total_size(sizeof(u8)) +	/* INBOUND */
+		nla_total_size(sizeof(u8)) +	/* OUTBOUND */
+		nla_total_size(sizeof(u8));	/* V4V6MAP */
+
+	/* HOST_ADDR4 or ADDR6 */
+	if (slwt->host_family == AF_INET)
+		nlsize += nla_total_size(sizeof(u32));
+	else if (slwt->host_family == AF_INET6)
+		nlsize += nla_total_size_64bit(sizeof(struct in6_addr));
+
+	/* V4V6 Map Prefix */
+	if (slwt->v4v6map)
+		nlsize += nla_total_size_64bit(sizeof(struct in6_addr));
+
+	return nlsize;
 }
 
 static int skip_encap_cmp(struct lwtunnel_state *a, struct lwtunnel_state *b)
 {
-	/* XXX: skip (currently) never enacp any packets */
-	return 0;
+	struct skip_lwt *sa = skip_lwt_lwtunnel(a);
+	struct skip_lwt *sb = skip_lwt_lwtunnel(b);
+
+	if (sa->dst_addr4 == sb->dst_addr4 &&
+	    memcmp(&sa->dst_addr6, &sb->dst_addr6,
+		   sizeof(struct in6_addr)) == 0 &&
+	    sa->host_addr4 == sb->host_addr4 &&
+	    memcmp(&sa->host_addr6, &sb->host_addr6,
+		   sizeof(struct in6_addr)) == 0)
+		return 0;
+
+	return 1;
 }
 
 static const struct lwtunnel_encap_ops skip_encap_ops = {
