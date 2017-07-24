@@ -227,7 +227,7 @@ static void print_encap_bpf(FILE *fp, struct rtattr *encap)
 static void print_encap_skip(FILE *fp, struct rtattr *encap)
 {
 	int family;
-	char buf[32];
+	char buf[64];
 	struct rtattr *tb[SKIP_ATTR_MAX+1];
 
 	parse_rtattr_nested(tb, SKIP_ATTR_MAX, encap);

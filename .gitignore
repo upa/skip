@@ -9,3 +9,5 @@ Module.symvers
 *.out
 core
 *.o.d
+
+setup.sh
