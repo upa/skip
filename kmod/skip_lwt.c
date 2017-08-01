@@ -177,11 +177,6 @@ err_out:
 	return ret;
 }
 
-static void skip_destroy_state(struct lwtunnel_state *lwt)
-{
-	pr_debug("%s\n", __func__);
-}
-
 static int skip_fill_encap_info(struct sk_buff *skb,
 				struct lwtunnel_state *lwtstate)
 {
@@ -234,11 +229,11 @@ static int skip_encap_nlsize(struct lwtunnel_state *lwtstate)
 	if (slwt->host_family == AF_INET)
 		nlsize += nla_total_size(sizeof(u32));
 	else if (slwt->host_family == AF_INET6)
-		nlsize += nla_total_size_64bit(sizeof(struct in6_addr));
+		nlsize += nla_total_size(sizeof(struct in6_addr));
 
 	/* V4V6 Map Prefix */
 	if (slwt->v4v6map)
-		nlsize += nla_total_size_64bit(sizeof(struct in6_addr));
+		nlsize += nla_total_size(sizeof(struct in6_addr));
 
 	return nlsize;
 }
@@ -261,13 +256,11 @@ static int skip_encap_cmp(struct lwtunnel_state *a, struct lwtunnel_state *b)
 
 static const struct lwtunnel_encap_ops skip_encap_ops = {
 	.build_state	= skip_build_state,
-	.destroy_state	= skip_destroy_state,
 	.output		= skip_output,
 	.input		= skip_input,
 	.fill_encap	= skip_fill_encap_info,
 	.get_encap_size	= skip_encap_nlsize,
 	.cmp_encap	= skip_encap_cmp,
-	.owner		= THIS_MODULE,
 };
 
 
